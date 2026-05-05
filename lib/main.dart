@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'services/task_api_service.dart';
 import 'task_repository.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -12,7 +13,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: "KrakFlow",
-      home: MojEkranGlownyAplikacji(),
+      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      home: const MojEkranGlownyAplikacji(),
     );
   }
 }
@@ -21,40 +23,87 @@ class MojEkranGlownyAplikacji extends StatefulWidget {
   const MojEkranGlownyAplikacji({super.key});
 
   @override
-  State<MojEkranGlownyAplikacji> createState() => _MojEkranGlownyAplikacjiState();
+  State<MojEkranGlownyAplikacji> createState() =>
+      _MojEkranGlownyAplikacjiState();
 }
 
-class _MojEkranGlownyAplikacjiState extends State<MojEkranGlownyAplikacji> {
+class _MojEkranGlownyAplikacjiState
+    extends State<MojEkranGlownyAplikacji> {
+  String selectedFilter = "wszystkie";
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("KrakFlow"),
+        title: const Text("KrakFlow"),
       ),
       body: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "Masz dziś ${TaskRepository.tasks.length} zadania",
+            const Text(
+              "Lista zadań z API",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 16),
-            Text(
-              "Dzisiejsze zadania",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            const SizedBox(height: 8),
+
+            Row(
+              children: [
+                _filterButton("wszystkie", "Wszystkie"),
+                _filterButton("do zrobienia", "Do zrobienia"),
+                _filterButton("wykonane", "Wykonane"),
+              ],
             ),
-            SizedBox(height: 16),
+
+            const SizedBox(height: 16),
+
             Expanded(
-              child: ListView.builder(
-                itemCount: TaskRepository.tasks.length,
-                itemBuilder: (context, index) {
-                  final task = TaskRepository.tasks[index];
-                  return TaskCard(
-                    title: task.title,
-                    subtitle: "termin: ${task.deadline} | ważność ${task.priority}",
-                    icon: task.done ? Icons.check_circle : Icons.radio_button_unchecked,
+              child: FutureBuilder<List<Task>>(
+                future: TaskApiService.fetchTasks(),
+                builder: (context, snapshot) {
+
+                  if (snapshot.connectionState ==
+                      ConnectionState.waiting) {
+                    return const Center(
+                        child: CircularProgressIndicator());
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Text("Błąd: ${snapshot.error}"),
+                    );
+                  }
+
+                  final tasks = snapshot.data!;
+
+                  List<Task> filteredTasks = tasks;
+                  if (selectedFilter == "wykonane") {
+                    filteredTasks =
+                        tasks.where((t) => t.done).toList();
+                  } else if (selectedFilter == "do zrobienia") {
+                    filteredTasks =
+                        tasks.where((t) => !t.done).toList();
+                  }
+
+                  return ListView.builder(
+                    itemCount: filteredTasks.length,
+                    itemBuilder: (context, index) {
+                      final task = filteredTasks[index];
+
+                      return TaskCard(
+                        title: task.title,
+                        subtitle:
+                        "termin: ${task.deadline} | ważność ${task.priority}",
+                        done: task.done,
+                        onChanged: (value) {
+                          setState(() {
+                            task.done = value ?? false;
+                          });
+                        },
+                        onTap: () {},
+                      );
+                    },
                   );
                 },
               ),
@@ -62,21 +111,17 @@ class _MojEkranGlownyAplikacjiState extends State<MojEkranGlownyAplikacji> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final newTask = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => AddTaskScreen()),
-          );
+    );
+  }
 
-          if (newTask != null) {
-            setState(() {
-              TaskRepository.tasks.add(newTask);
-            });
-          }
-        },
-        child: Icon(Icons.add),
+  Widget _filterButton(String filter, String label) {
+    bool isActive = selectedFilter == filter;
+    return TextButton(
+      onPressed: () => setState(() => selectedFilter = filter),
+      style: TextButton.styleFrom(
+        foregroundColor: isActive ? Colors.blue : Colors.grey,
       ),
+      child: Text(label),
     );
   }
 }
@@ -84,91 +129,36 @@ class _MojEkranGlownyAplikacjiState extends State<MojEkranGlownyAplikacji> {
 class TaskCard extends StatelessWidget {
   final String title;
   final String subtitle;
-  final IconData icon;
+  final bool done;
+  final ValueChanged<bool?> onChanged;
+  final VoidCallback onTap;
 
   const TaskCard({
     super.key,
     required this.title,
     required this.subtitle,
-    required this.icon,
+    required this.done,
+    required this.onChanged,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        leading: Icon(icon),
-        title: Text(title),
-        subtitle: Text(subtitle),
-      ),
-    );
-  }
-}
-
-class AddTaskScreen extends StatefulWidget {
-  const AddTaskScreen({super.key});
-
-  @override
-  State<AddTaskScreen> createState() => _AddTaskScreenState();
-}
-
-class _AddTaskScreenState extends State<AddTaskScreen> {
-  final TextEditingController titleController = TextEditingController();
-  final TextEditingController deadlineController = TextEditingController();
-  final TextEditingController priorityController = TextEditingController();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Nowe zadanie"),
-      ),
-      body: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: titleController,
-              decoration: InputDecoration(
-                labelText: "Tytuł zadania",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            SizedBox(height: 16),
-            TextField(
-              controller: deadlineController,
-              decoration: InputDecoration(
-                labelText: "Termin",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            SizedBox(height: 16),
-            TextField(
-              controller: priorityController,
-              decoration: InputDecoration(
-                labelText: "Priorytet",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                final newTask = Task(
-                  title: titleController.text,
-                  deadline: deadlineController.text,
-                  priority: priorityController.text,
-                  done: false,
-                );
-                Navigator.pop(context, newTask);
-              },
-              child: Text("Zapisz"),
-            ),
-          ],
+        onTap: onTap,
+        leading: Checkbox(value: done, onChanged: onChanged),
+        title: Text(
+          title,
+          style: TextStyle(
+            decoration:
+            done ? TextDecoration.lineThrough : TextDecoration.none,
+            color: done ? Colors.grey : Colors.black,
+          ),
         ),
+        subtitle: Text(subtitle),
+        trailing: const Icon(Icons.chevron_right),
       ),
     );
   }
 }
-
-

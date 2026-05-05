@@ -1,5 +1,3 @@
-import 'main.dart';
-
 class TaskRepository {
   static List<Task> tasks = [
     Task(title: "Projekt z matematyki", deadline: "za tydzień", done: false, priority: "Wysoki"),
@@ -11,10 +9,10 @@ class TaskRepository {
 }
 
 class Task {
-  final String title;
-  final String deadline;
-  final bool done;
-  final String priority;
+  String title;
+  String deadline;
+  String priority;
+  bool done;
 
   Task({
     required this.title,
