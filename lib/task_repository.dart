@@ -1,4 +1,4 @@
-class TaskRepository {
+ class TaskRepository {
   static List<Task> tasks = [
     Task(title: "Projekt z matematyki", deadline: "za tydzień", done: false, priority: "Wysoki"),
     Task(title: "Nauczyć się do kolokwium", deadline: "dzisiaj", done: true, priority: "Wysoki"),

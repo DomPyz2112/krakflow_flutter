@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:http/http.dart' as http;
-import '../task_repository.dart';
+import '../models/task.dart';
 
 class TaskApiService {
   static const String baseUrl = "https://dummyjson.com";
@@ -32,14 +32,11 @@ class TaskApiService {
       final List todos = data["todos"];
 
       return todos.map((todo) {
-
-        final priority =
-        priorities[random.nextInt(priorities.length)];
-
-        final deadline =
-        deadlines[random.nextInt(deadlines.length)];
+        final priority = priorities[random.nextInt(priorities.length)];
+        final deadline = deadlines[random.nextInt(deadlines.length)];
 
         return Task(
+          id: todo["id"] as int,
           title: todo["todo"],
           deadline: deadline,
           priority: priority,
